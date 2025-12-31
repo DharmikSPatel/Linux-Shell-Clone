@@ -54,4 +54,46 @@ This is a custom implementation of the Linux Command Line called **mysh**.
 
 ## Implementation Details
 
-### job.
+### job.c
+Represents the **Job** Abstract Data Type.
+* **`execPath`**: 
+    * Builtins: The name of the builtin.
+    * Non-builtins: Full path located via `/usr/local/bin`, `/usr/bin`, or `/bin`.
+    * If the input contains a `/`, it is treated as a direct path.
+* **`args`**: Array of strings expanded using wildcards (`*`). Wildcards match zero or more characters and must appear at the end of a path.
+* **Redirection**: Stores paths for `inputReDirectPath` (`<`) and `outputReDirectPath` (`>`).
+
+### builtins.c
+Handles core shell commands:
+* **`cd`**: Changes working directory via `chdir()`. Expects exactly one argument.
+* **`which`**: Locates the path of a program. Checks builtins first, then system paths.
+* **`pwd`**: Prints current working directory using `getcwd()`.
+
+### mysh.c
+The main program launcher.
+* Manages `mysh_errno` to track exit statuses for `then`/`else` logic.
+* **Execution Flow**:
+    1.  Trim whitespace and split commands by pipes.
+    2.  Create `Job` objects for each sub-command.
+    3.  **Single Job**: If builtin, runs in-process with `dup2` redirection. If non-builtin, uses `fork()`, `dup2`, and `exec()`.
+    4.  **Piped Jobs**: Sets up communication using `pipe()` and `dup2()`.
+
+---
+
+## Tests
+
+### Test Interactive Mode
+Used to verify that `mysh` parses input, expansions, and redirections correctly.
+
+**Example Test Cases:**
+1.  `echo man name > txt.txt`: Tests output redirection and bare name expansion.
+2.  `cat < txt.txt`: Tests input redirection.
+3.  `ls *.c`: Tests wildcard expansion for files in the current directory.
+4.  `ls testFolder2/*.txt > txt.txt`: Tests wildcards within a specific path.
+
+### Test Batch Mode
+Run this using `make batchmodetest`. This suite covers:
+* **Wildcards**: Including scenarios with no matching files (returns original string).
+* **Redirection**: Input, output, and combined (e.g., `./sum < in > out`).
+* **Pipes**: Mixing system functions, builtins, and redirection within pipes.
+* **Conditionals**: Verifying that `then` and `else` blocks execute correctly based on the success of the preceding command.
